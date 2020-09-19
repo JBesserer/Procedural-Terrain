@@ -18,6 +18,10 @@ public class MapView : MonoBehaviour
     public MeshRenderer meshRenderer;
     private float[,] falloffMap;
 
+    private void Start() 
+    {
+        textureData.ApplyToMaterial(terrainMaterial);
+    }
     public void DrawMapInEditor()
     {
         textureData.ApplyToMaterial(terrainMaterial);
