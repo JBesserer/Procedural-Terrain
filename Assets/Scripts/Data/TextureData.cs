@@ -5,14 +5,17 @@ using System.Linq;
 [CreateAssetMenu()]
 public class TextureData : UpdatableData
 {
+
     const int textureSize = 512;
     const TextureFormat textureFormat = TextureFormat.RGB565;
+    public bool hasTextureSet;
     public Layer[] layers;
     private float savedMinHeight;
     private float savedMaxHeight;
     public void ApplyToMaterial(Material material)
     {
         UpdateMeshHeights(material, savedMinHeight, savedMaxHeight);
+        hasTextureSet = true;
     }
 
     public void UpdateMeshHeights(Material material, float minHeight, float maxHeight)
