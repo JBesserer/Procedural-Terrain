@@ -46,7 +46,6 @@ public class TerrainGenerator : MonoBehaviour
             {
                 chunk.UpdateCollisionMesh();
             }
-            viewerPositionOld = viewerPosition;
         }
         if ((viewerPositionOld - viewerPosition).sqrMagnitude > sqrViewerMoveThresholdForChunkUpdate)
         {
