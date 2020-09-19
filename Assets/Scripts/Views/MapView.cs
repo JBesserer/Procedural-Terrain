@@ -52,7 +52,7 @@ public class MapView : MonoBehaviour
     public void DrawMesh(MeshData meshData)
     {
         meshFilter.sharedMesh = meshData.CreateMesh();
-
+        
         textureRenderer.gameObject.SetActive(false);
         meshFilter.gameObject.SetActive(true);
     }  

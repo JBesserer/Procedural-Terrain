@@ -40,10 +40,13 @@ public class TerrainGenerator : MonoBehaviour
     private void Update()
     {
         viewerPosition = new Vector2(viewer.position.x, viewer.position.z);
-        foreach (TerrainChunk chunk in visibleTerrainChunks)
+         if (viewerPosition != viewerPositionOld)
         {
-            chunk.UpdateCollisionMesh();
-            UpdateVisibleFoliage(chunk);
+            foreach (TerrainChunk chunk in visibleTerrainChunks)
+            {
+                chunk.UpdateCollisionMesh();
+            }
+            viewerPositionOld = viewerPosition;
         }
         if ((viewerPositionOld - viewerPosition).sqrMagnitude > sqrViewerMoveThresholdForChunkUpdate)
         {
@@ -52,31 +55,29 @@ public class TerrainGenerator : MonoBehaviour
         }
     }
 
-    private void UpdateVisibleFoliage(TerrainChunk chunk)
+    //Called on creation
+    private void UpdateVisibleFoliage(TerrainChunk chunk, FoliageInfo foliageInfo)
     {
-        if (chunk.hasSetCollider && !chunk.hasSetFoliage)
+        List<Vector3> trimmedSpawnPoints = new List<Vector3>();
+        int numTreesToSpawn = foliageInfo.numTreesToSpawnBasedOnElevation;
+        //Trims the number of trees to spawn in a random manner to keep the trees fairly spread out
+        while(numTreesToSpawn > 0)
         {
-            List<Vector2> foliageSpawnPoints = FoliageGenerator.GenerateFoliage(radius, meshSettings, rejectionSamples);
-            //Foliage generation
-            for (int i = 0; i < foliageSpawnPoints.Count; i++)
-            {
-                RaycastHit hit;
-                Ray ray = new Ray(new Vector3(foliageSpawnPoints[i].x, heightMapSettings.maxHeight, foliageSpawnPoints[i].y), Vector3.down);
-                if (chunk.meshCollider.Raycast(ray, out hit, 2.0f * heightMapSettings.maxHeight))
-                {
-                    float heightAtGrassLevel = heightMapSettings.maxHeight*(textureSettings.layers[2].startHeight + 0.05f);
-                    float heightAtNextLevel = heightMapSettings.maxHeight*(textureSettings.layers[3].startHeight - 0.05f);
-                    if(hit.point.y >= heightAtGrassLevel && hit.point.y < heightAtNextLevel)
-                    {  
-                        GameObject gameObject = Instantiate(treeObject, hit.point, Quaternion.identity);
-                        gameObject.name = "Tree";
-                        gameObject.transform.parent = chunk.meshObject.transform;
-                    }
-                }
-            }
-            chunk.hasSetFoliage = true;
+            int randomIndex = Random.Range(0, foliageInfo.foliageSpawnPoints.Count - 1);
+            trimmedSpawnPoints.Add(foliageInfo.foliageSpawnPoints[randomIndex]);
+            numTreesToSpawn--;
+        }
+        //Instantiation of trees under their respective Terrain Chunks parent (makes setting active and inactive easier)
+        for (int i = 0; i < trimmedSpawnPoints.Count; i++)
+        {
+            GameObject gameObject = Instantiate(treeObject,trimmedSpawnPoints[i], Quaternion.identity);
+            gameObject.name = "Tree";
+            gameObject.transform.parent = chunk.meshObject.transform;
         }
     }
+
+    
+    
 
     private void UpdateVisibleChunks()
     {
@@ -103,9 +104,10 @@ public class TerrainGenerator : MonoBehaviour
                     }
                     else
                     {
-                        TerrainChunk newChunk = new TerrainChunk(viewedChunkCoord, heightMapSettings, meshSettings, detailLevels, colliderLODIndex, transform, viewer, mapMaterial);
+                        TerrainChunk newChunk = new TerrainChunk(viewedChunkCoord, heightMapSettings, meshSettings, textureSettings, detailLevels, colliderLODIndex, transform, viewer, mapMaterial);
                         terrainChunkDictionary.Add(viewedChunkCoord, newChunk);
                         newChunk.onVisibilityChanged += OnTerrainChunkVisibilityChanged;
+                        newChunk.onFoliageDataReceivedEvent += UpdateVisibleFoliage;
                         newChunk.Load();
                     }
                 }

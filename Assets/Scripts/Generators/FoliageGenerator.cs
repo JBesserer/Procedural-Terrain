@@ -4,74 +4,24 @@ using UnityEngine;
 
 public class FoliageGenerator
 {
-    public static List<Vector2> GenerateFoliage(float radius, MeshSettings meshSettings, int numSamplesBeforeRejection = 30)
+    public static FoliageInfo GenerateFoliage(Vector3[] chunkVertices, Matrix4x4 matrix, HeightMapSettings heightMapSettings, TextureData textureSettings)
     {
-        float cellSize = radius/Mathf.Sqrt(2);
-        Vector2 sampleRegionSize = new Vector2(meshSettings.meshWorldSize, meshSettings.meshWorldSize);
-
-        int[,] grid = new int[Mathf.CeilToInt(sampleRegionSize.x/cellSize), Mathf.CeilToInt(sampleRegionSize.y/cellSize)];
-        List<Vector2> points = new List<Vector2>();
-        List<Vector2> spawnPoints = new List<Vector2>();
-
-        spawnPoints.Add(sampleRegionSize/2);
-        while (spawnPoints.Count > 0)
+        List<Vector3> verticesFoliageLevel = new List<Vector3>();
+        //TODO: The layers shouldnt be written like this.
+        float heightAtGrassLevel = heightMapSettings.maxHeight*(textureSettings.layers[2].startHeight + 0.05f);
+        float heightAtNextLevel = heightMapSettings.maxHeight*(textureSettings.layers[3].startHeight - 0.05f);
+        for (int i = 0; i < chunkVertices.Length; i++)
         {
-            int spawnIndex = Random.Range(0, spawnPoints.Count);
-            Vector2 spawnCenter = spawnPoints[spawnIndex];
-            bool candidateAccepted = false;
-
-            for (int i = 0; i < numSamplesBeforeRejection; i++)
+            Vector3 meshWorldPosition = matrix.MultiplyPoint3x4(chunkVertices[i]);
+            if(meshWorldPosition.y >= heightAtGrassLevel && meshWorldPosition.y < heightAtNextLevel)
             {
-                float angle = Random.value * Mathf.PI * 2;
-                Vector2 dir = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle));
-                Vector2 candidate = spawnCenter + dir * Random.Range(radius, 2*radius);
-                if(IsValid(candidate, sampleRegionSize, cellSize, radius, points, grid))
-                {
-                    points.Add(candidate);
-                    spawnPoints.Add(candidate);
-                    grid[(int)(candidate.x/cellSize), (int)(candidate.y/cellSize)] = points.Count;
-                    candidateAccepted = true;
-                    break;
-                }
-            }
-
-            if(!candidateAccepted)
-            {
-                spawnPoints.RemoveAt(spawnIndex);
+                verticesFoliageLevel.Add(meshWorldPosition);
             }
         }
-
-        return points;
-    }
-
-    private static bool IsValid(Vector2 candidate, Vector2 sampleRegionSize, float cellSize, float radius, List<Vector2> points, int[,] grid)
-    {
-        if(candidate.x >= 0 && candidate.x < sampleRegionSize.x && candidate.y >= 0 && candidate.y < sampleRegionSize.y)
-        {
-            int cellX = (int)(candidate.x/cellSize);
-            int cellY = (int)(candidate.y/cellSize);
-            int searchStartX = Mathf.Max(0, cellX - 2);
-            int searchEndX = Mathf.Min(cellX+2, grid.GetLength(0)-1);
-            int searchStartY = Mathf.Max(0, cellY - 2);
-            int searchEndY = Mathf.Min(cellY+2, grid.GetLength(1)-1);
-
-            for (int x = searchStartX; x <= searchEndX; x++)
-            {
-                for (int y = searchStartY; y <= searchEndY; y++)
-                {
-                    int pointIndex = grid[x,y] - 1;
-                    if(pointIndex != -1)
-                    {
-                        float sqrDistance = (candidate - points[pointIndex]).sqrMagnitude;
-                        if(sqrDistance < (radius*radius))
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-        return false;
+        //Returns the percentage of vertices at the foliage level and the untrimmed array of vertices 
+        //Untrimmed because(Random.Range can only be called on the Main Thread and this method is used in multithreading situations)
+        float percentFoliageLevel = ((float)verticesFoliageLevel.Count / (float)chunkVertices.Length);
+        int numberOfTreesToSpawnUntrimmed = Mathf.CeilToInt(verticesFoliageLevel.Count * percentFoliageLevel);
+        return new FoliageInfo(verticesFoliageLevel, numberOfTreesToSpawnUntrimmed);
     }
 }

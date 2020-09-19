@@ -3,10 +3,11 @@ using System.Collections.Generic;
 public class TerrainChunk
 {
     public event System.Action<TerrainChunk, bool> onVisibilityChanged;
+    public event System.Action<TerrainChunk, FoliageInfo> onFoliageDataReceivedEvent;
     public Vector2 coordinates;
     public MeshCollider meshCollider { get; private set;}
     public bool hasSetCollider{get; private set;}
-    public bool hasSetFoliage = false;
+    public bool hasSetFoliage{get; private set;}
     public int colliderLODIndex { get; private set;}
     public  int previousLODIndex { get; private set;}
     public GameObject meshObject { get; private set;}
@@ -14,7 +15,9 @@ public class TerrainChunk
     private Vector2 sampleCenter;
     private Bounds bounds;
     private HeightMap heightMap;
+    private FoliageInfo foliageInfo;
     private bool hasReceivedHeightMap;
+    private bool hasRequestedFoliage;
     private MeshRenderer meshRenderer;
     private MeshFilter meshFilter;
     private LODInfo[] detailLevels;
@@ -22,18 +25,19 @@ public class TerrainChunk
     private float maxViewDistance;
     private HeightMapSettings heightMapSettings;
     private MeshSettings meshSettings;
+    private TextureData textureSettings;
     private Transform viewer;
 
-    public TerrainChunk(Vector2 coord, HeightMapSettings heighMapSettings, MeshSettings meshSettings, LODInfo[] detailLevels, int colliderLODIndex, Transform parent, Transform viewer, Material material)
+    public TerrainChunk(Vector2 coord, HeightMapSettings heighMapSettings, MeshSettings meshSettings, TextureData textureSettings, LODInfo[] detailLevels, int colliderLODIndex, Transform parent, Transform viewer, Material material)
     {
         this.coordinates = coord;
         this.detailLevels = detailLevels;
         this.colliderLODIndex = colliderLODIndex;
         this.heightMapSettings = heighMapSettings;
         this.meshSettings = meshSettings;
+        this.textureSettings = textureSettings;
         this.viewer = viewer;
         this.previousLODIndex = -1;
-
 
         sampleCenter = coord * meshSettings.meshWorldSize / meshSettings.meshScale;
         Vector2 position = coord * meshSettings.meshWorldSize;
@@ -113,6 +117,11 @@ public class TerrainChunk
                     {
                         previousLODIndex = lodIndex;
                         meshFilter.mesh = lodMesh.mesh;
+                        if(!hasSetFoliage)
+                        {
+                            RequestFoliage(lodMeshes[previousLODIndex].mesh);
+                        }
+                        
                     } else if (!lodMesh.hasRequestedMesh) {
                         lodMesh.RequestMesh(heightMap, meshSettings);
                     }
@@ -149,7 +158,6 @@ public class TerrainChunk
                 {
                     meshCollider.sharedMesh = lodMeshes[colliderLODIndex].mesh;
                     hasSetCollider = true;
-
                 }
             }
         }  
@@ -163,6 +171,24 @@ public class TerrainChunk
     public bool IsVisible()
     {
         return meshObject.activeSelf;
+    }
+
+    private void RequestFoliage(Mesh mesh)
+    {
+        Vector3[] vertices = mesh.vertices;
+        Matrix4x4 matrix = this.meshObject.transform.localToWorldMatrix;
+        hasRequestedFoliage = true;
+        ThreadedDataRequester.RequestData(() => FoliageGenerator.GenerateFoliage(vertices, matrix, heightMapSettings, textureSettings), OnFoliageDataReceived);
+    }
+
+    private void OnFoliageDataReceived(object foliageDataObject)
+    {
+        foliageInfo = ((FoliageInfo)foliageDataObject);
+        hasSetFoliage = true;
+        if(onFoliageDataReceivedEvent != null)
+        {
+            onFoliageDataReceivedEvent(this, foliageInfo);
+        }
     }
 
     private class LODMesh
@@ -206,5 +232,17 @@ public struct LODInfo
         get {
             return visibleDistanceThreshold * visibleDistanceThreshold;
         }
+    }
+}
+
+public struct FoliageInfo
+{
+    public List<Vector3> foliageSpawnPoints;
+    public int numTreesToSpawnBasedOnElevation;
+
+    public FoliageInfo(List<Vector3> foliageSpawnPoints, int numTreesToSpawnBasedOnElevation) : this()
+    {
+        this.foliageSpawnPoints = foliageSpawnPoints;
+        this.numTreesToSpawnBasedOnElevation = numTreesToSpawnBasedOnElevation;
     }
 }
