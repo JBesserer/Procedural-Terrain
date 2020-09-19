@@ -19,7 +19,7 @@ public class MeshSettings : UpdatableData
     //Includes the 2 extra vertices that are excluded from final mesh, but used for calculating normals
     public int numVertsPerLine{
         get {
-            return supportedChunkSizes[(useFlatShading)? flatShadedChunkSizeIndex: chunkSizeIndex] + 1;
+            return supportedChunkSizes[(useFlatShading)? flatShadedChunkSizeIndex: chunkSizeIndex] + 5;
         }
     }
 
