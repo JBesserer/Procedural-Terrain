@@ -1,22 +1,24 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 public class TerrainChunk
 {
     public event System.Action<TerrainChunk, bool> onVisibilityChanged;
     public Vector2 coordinates;
+    public MeshCollider meshCollider { get; private set;}
+    public bool hasSetCollider{get; private set;}
+    public bool hasSetFoliage = false;
+    public int colliderLODIndex { get; private set;}
+    public  int previousLODIndex { get; private set;}
+    public GameObject meshObject { get; private set;}
     private const float colliderGenerationDistanceThreshold = 5f;
-    private GameObject meshObject;
     private Vector2 sampleCenter;
     private Bounds bounds;
     private HeightMap heightMap;
     private bool hasReceivedHeightMap;
     private MeshRenderer meshRenderer;
     private MeshFilter meshFilter;
-    private MeshCollider meshCollider;
-    private bool hasSetCollider;
     private LODInfo[] detailLevels;
     private LODMesh[] lodMeshes;
-    private int colliderLODIndex;
-    private int previousLODIndex = -1;
     private float maxViewDistance;
     private HeightMapSettings heightMapSettings;
     private MeshSettings meshSettings;
@@ -30,6 +32,8 @@ public class TerrainChunk
         this.heightMapSettings = heighMapSettings;
         this.meshSettings = meshSettings;
         this.viewer = viewer;
+        this.previousLODIndex = -1;
+
 
         sampleCenter = coord * meshSettings.meshWorldSize / meshSettings.meshScale;
         Vector2 position = coord * meshSettings.meshWorldSize;
@@ -145,6 +149,7 @@ public class TerrainChunk
                 {
                     meshCollider.sharedMesh = lodMeshes[colliderLODIndex].mesh;
                     hasSetCollider = true;
+
                 }
             }
         }  
